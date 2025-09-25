@@ -9,7 +9,7 @@ const {name} = defineProps<{
 
 function sayHello() {
     // eslint-disable-next-line no-alert
-    alert(`Hello, ${name}`)
+    console.log(`Hello, ${name}`)
 }
 </script>
 
