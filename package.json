@@ -5,14 +5,18 @@
   "description": "",
   "exports": {
     ".": {
-      "import": "./dist/index.es.js",
-      "require": "./dist/index.cjs.js"
+      "types": "./dist/es/index.d.ts",
+      "import": "./dist/es/index.es.js",
+      "require": "./dist/lib/index.cjs.js"
     },
     "./*": "./*"
   },
-  "main": "./dist/index.umd.js",
-  "module": "./dist/index.es.js",
-  "files": ["dist"],
+  "main": "./dist/lib/index.umd.js",
+  "module": "./dist/es/index.es.js",
+  "types": "./dist/es/index.d.ts",
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "dev": "vite build --watch",
     "build": "vite build",
@@ -29,6 +33,7 @@
   "license": "ISC",
   "packageManager": "pnpm@10.17.1",
   "devDependencies": {
+    "@types/node": "^24.5.2",
     "@vitejs/plugin-vue": "^6.0.1",
     "typescript": "^5.9.2",
     "vite": "^7.1.7",
@@ -37,5 +42,8 @@
   },
   "peerDependencies": {
     "vue": "^3.5.22"
+  },
+  "dependencies": {
+    "vite-plugin-dts": "^4.5.4"
   }
 }
