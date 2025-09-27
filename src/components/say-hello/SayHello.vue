@@ -1,20 +1,26 @@
 <script lang="ts" setup>
-defineOptions({
-    name: 'StSayHello',
-})
+import { defineOptions } from "vue";
 
-const {name} = defineProps<{
-    name: string
-}>()
+defineOptions({
+  name: "StSayHello",
+});
+
+const { name } = defineProps<{
+  name: string;
+}>();
 
 function sayHello() {
-    // eslint-disable-next-line no-alert
-    console.log(`Hello, ${name}`)
+  // eslint-disable-next-line no-alert
+  console.log(`Hello, ${name}`);
 }
 </script>
 
 <template>
-    <button class="starter-lib-vue3-say-hello" @click="sayHello()">Say Hi!</button>
+  <button class="starter-lib-vue3-say-hello" @click="sayHello()">
+    Say Hi!
+  </button>
 </template>
 
-<style>@import url('./style.css');</style>
+<style>
+@import url("./style.css");
+</style>

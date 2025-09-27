@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { StSayHello } from 'my-wcs-component-library';
+import { StSayHello } from "my-wcs-component-library";
 </script>
 
 <template>
