@@ -2,6 +2,7 @@ import vue from "@vitejs/plugin-vue";
 import dts from "vite-plugin-dts";
 import path from "node:path";
 import { defineConfig } from "vite";
+import eslint from "vite-plugin-eslint";
 
 export default defineConfig({
   plugins: [
@@ -17,6 +18,9 @@ export default defineConfig({
       outDir: "./dist/lib",
       entryRoot: "./src",
       exclude: ["node_modules", "vite.config.ts"],
+    }),
+    eslint({
+      fix: true,
     }),
   ],
   build: {

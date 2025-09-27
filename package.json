@@ -48,6 +48,7 @@
     "typescript": "^5.9.2",
     "typescript-eslint": "^8.44.1",
     "vite": "^7.1.7",
+    "vite-plugin-dts": "^4.5.4",
     "vitepress": "^1.6.4",
     "vue": "^3.5.22"
   },
@@ -55,6 +56,6 @@
     "vue": "^3.5.22"
   },
   "dependencies": {
-    "vite-plugin-dts": "^4.5.4"
+    "vite-plugin-eslint": "^1.8.1"
   }
 }
