@@ -76,7 +76,7 @@
     "vue": "^3.5.22"
   },
   "simple-git-hooks": {
-    "pre-commit": "pnpm lint && pnpm test && pnpm exec prettier . --check"
+    "pre-commit": "pnpm lint && pnpm test && pnpm prettier:check"
   },
   "pnpm": {
     "overrides": {
