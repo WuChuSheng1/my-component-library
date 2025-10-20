@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { StSayHello } from "my-wcs-component-library";
+// 使用自动按需引入，无需手动 import
 </script>
 
 <template>
-  <StSayHello name="world"></StSayHello>
+  <StSayHello name="world" />
 </template>
 
 <style scoped>

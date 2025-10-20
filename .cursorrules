@@ -1,0 +1,29 @@
+# Project Rules
+
+## Communication
+- 语言：中文
+- 回答风格：简洁要点优先，必要时给出命令或代码片段
+- 引用文件名请用反引号：`packages/ui/vite.config.ts`
+
+## Tech Stack
+- Monorepo：pnpm workspaces
+- 前端：Vue 3 + TypeScript
+- 构建：Vite（库模式）
+- 文档：VitePress
+- 测试：Vitest + jsdom
+
+## Code Style
+- 强类型、避免 any
+- 变量/函数命名可读性优先，避免缩写
+- 注释只写非显而易见的关键点
+- 保持现有缩进与格式，不改无关代码
+
+## Do
+- 产物：ESM + CJS + UMD + d.ts
+- 组件按需导出，保留 tree-shaking
+- 修改前先找现有实现/统一入口
+
+## Don’t
+- 不引入大型依赖（先提建议）
+- 不绕过 ESLint/TS 报错
+- 不在代码内加入与实现无关的讲述性注释

@@ -3,12 +3,19 @@
     "target": "es2018",
     "lib": ["esnext", "dom"],
     "module": "esnext",
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "strict": true,
     "strictNullChecks": true,
     "esModuleInterop": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "types": ["node"]
   },
-  "include": ["src/**/*.ts", "docs/**/*.ts"]
+  "include": [
+    "src/**/*.ts",
+    "docs/**/*.ts",
+    "packages/**/*.ts",
+    "packages/**/*.vue",
+    "vite.config.ts"
+  ]
 }

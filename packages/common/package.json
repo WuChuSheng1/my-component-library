@@ -1,0 +1,29 @@
+{
+  "name": "@my-wcs/common",
+  "version": "0.0.0",
+  "type": "module",
+  "private": false,
+  "description": "Common utilities for my-wcs component library",
+  "main": "dist/lib/index.cjs.js",
+  "module": "dist/es/index.es.js",
+  "types": "dist/es/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/es/index.d.ts",
+      "import": "./dist/es/index.es.js",
+      "require": "./dist/lib/index.cjs.js"
+    },
+    "./*": "./dist/*"
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "dev": "vite build --watch",
+    "build": "vite build",
+    "typecheck": "vue-tsc --noEmit -p tsconfig.json",
+    "lint": "eslint --ext .ts src",
+    "test": "vitest run --passWithNoTests"
+  }
+}

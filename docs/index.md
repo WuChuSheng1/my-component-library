@@ -22,3 +22,10 @@ features:
   - title: Feature C
     details: Lorem ipsum dolor sit amet, consectetur adipiscing elit
 ---
+
+# 我的组件库
+
+欢迎使用本组件库。以下是常用指南：
+
+- [按需引入与自动导入](./guide/auto-import.md)
+- [协作指南（AGENTS）](./guide/agents.md)

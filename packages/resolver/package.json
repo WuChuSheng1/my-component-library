@@ -1,0 +1,30 @@
+{
+  "name": "@my-wcs/resolver",
+  "version": "0.0.0",
+  "type": "module",
+  "private": false,
+  "main": "dist/index.cjs.js",
+  "module": "dist/index.es.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.es.js",
+      "require": "./dist/index.cjs.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json && tsup src/index.ts --format cjs,esm --dts",
+    "typecheck": "tsc -p tsconfig.json",
+    "lint": "eslint --ext .ts src",
+    "test": "vitest run --passWithNoTests"
+  },
+  "devDependencies": {
+    "tsup": "^8.3.0",
+    "typescript": "^5.9.2"
+  }
+}
