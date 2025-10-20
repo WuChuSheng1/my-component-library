@@ -37,7 +37,9 @@
     "play:dev": "pnpm --filter ./play dev",
     "play:build": "pnpm --filter ./play build",
     "play:preview": "pnpm --filter ./play preview",
-    "eslint-view": "eslint-config-inspector"
+    "eslint-view": "eslint-config-inspector",
+    "prettier:check": "pnpm exec prettier . --check",
+    "prettier:write": "pnpm exec prettier . --write"
   },
   "keywords": [],
   "author": "",
