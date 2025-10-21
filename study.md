@@ -82,7 +82,7 @@
    <!-- 正常工作 -->
    <div :id="count"></div>
    <!-- 结果：[object Object]1 -->
-   <div :id="object + '1'"></div>
+   <div :id="object.id + '1'"></div>
    ```
 
    对于文本插值则比较特殊，会自动解构：
@@ -174,3 +174,281 @@
     // 需要.value
     console.log(map.get("count").value);
     ```
+
+11. `computed`方法期望接受一个getter函数，返回值为一个计算属性`ref`，和其他一般的`ref`类似，也会在模板中自动解包。
+
+    计算属性与函数生成区别：计算属性值会基于其响应式依赖被缓存，它仅会在其响应式依赖更新时重新计算。而函数则需多次手动调用。
+
+    计算属性默认是只读属性，但也可以重写属性`getter`和`setter`来创建可写计算属性。
+
+    `3.4`版本支持特性：可以通过访问计算属性的`gettter`的第一个参数来获取计算属性返回的上一个值(旧值)
+
+    最佳实践：`getter`不应该有副作用，只负责计算。不要改变任何其他状态。如果有需要，更加推荐`watch`。
+
+    应避免直接修改计算属性值，计算属性返回的值是派生状态，相当于是源状态的一个“快照”，修改快照是没有意义的。正确思路是通过更新它所依赖的源状态以触发新的计算。
+
+12. 绑定HTML class：
+
+    ```html
+    <!-- 绑定对象 -->
+    <script>
+      const isActive = ref(false);
+      const classObject = reactive({
+        active: true,
+        "text-danger": false,
+      });
+      const classObjectComp = computed(() => ({
+        active: isActive.value && !error.value,
+        "text-danger": error.value && error.value.type === "fatal",
+      }));
+    </script>
+    <div :class="{ active: isActive }"></div>
+    <div :class="classObject"></div>
+    <div :class="classObjectComp"></div>
+
+    <!-- 绑定数组 -->
+    <script>
+      const activeClass = ref("active");
+      const errorClass = ref("text-danger");
+    </script>
+
+    <div :class="[activeClass, errorClass]"></div>
+    <div :class="[isActive ? activeClass : '', errorClass]"></div>
+    <!-- 数组中也支持嵌套对象 -->
+    <div :class="[{ [activeClass]: isActive }, errorClass]"></div>
+    ```
+
+13. 绑定内联样式
+
+    支持对象绑定、数组对象绑定
+
+    自动前缀：vue会为需要浏览器特殊前缀的css属性自动加上相应的前缀，vue在运行时就会检查属性是否支持当前浏览器，若不支持，则会尝试加上各个浏览器特殊前缀，以找到哪个是被支持的
+
+    样式多值：支持对一个样式属性提供多个（不同前缀的）值：
+
+    ```html
+    <div :style="{ display: ['-webkit-box', '-ms-flexbox', 'flex'] }"></div>
+    ```
+
+    数组仅会渲染浏览器支持的最后一个值，在上面的示例中，在支持不需要特别前缀的浏览器中都会渲染为`display: flex`。
+
+14. `v-if`优先级比`v-for`高
+
+    `v-for`上的变量别名支持解构：
+
+    ```html
+    <li v-for="{ message } in items">{{ message }}</li>
+
+    <li v-for="({ message }, index) in items">{{ message }} {{ index }}</li>
+    ```
+
+    `v-for`也可遍历一个对象的所有属性，遍历顺序会基于对该对象调用`Object.values()`的返回值来决定。
+
+    ```html
+    <script>
+      const myObject = reactive({
+        title: "title",
+        author: "wcs",
+        publishedAt: "xxx",
+      });
+    </script>
+    <ul>
+      <li v-for="value in myObject">{{ value }}</li>
+
+      <!-- 第二个参数表示key值 -->
+      <li v-for="(value, key) in myObject">{{ key }}: {{ value }}</li>
+
+      <!-- 第三个参数表示index索引 -->
+      <li v-for="(value, key, index) in myObject"></li>
+    </ul>
+    ```
+
+    `v-for`可以接受一个整数值，它会将该模板基于`1...n`的取值范围重复多次
+
+    ```html
+    <!-- 特别注意这里的n是从1开始，而不是0 -->
+    <span v-for="n in 10"></span>
+    ```
+
+    `template`上的使用：`template`上都允许`v-if`和`v-for`的使用，但不支持`v-show`
+
+15. `v-if`和`v-for`
+
+    当它们同时存在于一个节点上时，由于`v-if`比`v-for`的优先级更高，这意味着`v-if`的条件将无法访问到`v-for`作用域内定义的变量别名：
+
+    ```html
+    <!-- 抛出错误 -->
+    <li v-for="todo in todos" v-if="!todo.isComplete"></li>
+    ```
+
+    可以使用`template`来解决这个问题：
+
+    ```html
+    <template v-for="todo in todos">
+      <li v-if="!todo.isComplete">{{ todo.name }}</li>
+    </template>
+    ```
+
+    注意：不推荐同时使用这两个指令
+
+16. `v-for`通过`key`来管理状态
+    Vue默认按照“就地更新”的策略来更新通过`v-for`渲染的元素列表。当数据项的顺序改变时，Vue不会随之移动DOM元素的顺序，而是就地更新每个元素，确保它们在原本指定的索引位置上渲染。
+
+    默认模式是高效的，但只适用于列表渲染输出的结果不依赖子组件状态或者临时DOM状态（例如表单输入值）的情况
+
+    为了给Vue一个提示，以便它可以跟踪每个节点的标识，从而重用和重新排序现有的元素，需要为每个元素对应的块添加一个唯一的`key`标识。
+
+    当使用了`key`时，Vue不会采用默认模式进行更新，而是利用key进行虚拟DOM的匹配，对DOM进行重用与重新排序。
+
+    当所迭代的DOM内容非常简单（例如：不包含组件或有状态的DOM元素），或者你想有意采用默认行为来提高性能。
+
+17. 为什么不推荐`v-for`和`v-if`同时在一个节点使用
+
+    `Vue2`：
+
+    优先级：`v-for`大于`v-if`
+
+    执行顺序：先执行`v-for`生成多个节点，再对每个元素执行`v-if`
+
+    问题：性能浪费，会先创建`v-for`的每一个元素，再被`v-if`销毁。
+
+    `Vue3`：
+
+    优先级：`v-if`大于`v-for`
+
+    执行顺序：先执行`v-if`，当其为真时才执行`v-for`
+
+    问题：`v-if`无法访问`v-for`的变量。
+
+    共通问题：代码意图模糊，且通常有性能更优、逻辑更清晰的替代方案。
+
+18. 数组变化侦测：
+
+    Vue能侦测响应式数组的变更方法，并在它们被调用时触发相关的更新，包括：
+    `push`、`pop`、`shift`、`unshift`、`splice`、`sort`、`reverse`
+
+    Vue允许对响应式数组直接赋值一个新数组，Vue会利用虚拟DOM和diff算法最大化地对DOM元素进行重用，因此直接替换也是一个高效操作。
+
+19. 事件处理
+
+    内联事件处理器：事件被出发时执行的内联JavaScript语句
+
+    方法事件处理器：一个指向组件上定义的方法的属性名或路径
+
+    ```html
+    <!-- 内联事件处理器 -->
+    <!-- 使用特殊的$event变量 -->
+    <button @click="warn('Form cannot be submitted yet.', $event)">
+      Submit
+    </button>
+
+    <!-- 使用内联箭头函数 -->
+    <button @click="(event) => warn('Form cannot be submitted yet.', event)">
+      Submit
+    </button>
+
+    <script>
+      function warn(message, event) {
+        /* xxx */
+      }
+    </script>
+    ```
+
+20. 事件修饰符
+
+    `.stop`、`.prevent`、`.self`、`.capture`、`.once`、`.passive`
+
+    ```html
+    <!-- 单击事件将停止传递，停止捕获 -->
+    <a @click.stop="doThis"></a>
+
+    <!-- 提交事件将不再重新加载页面，停止冒泡 -->
+    <form @submit.prevent="onSubmit"></form>
+
+    <!-- 修饰符支持使用链式书写 -->
+    <a @click.stop.prevent="doThis"></a>
+
+    <!-- 也可以只有修饰符 -->
+    <form @submit.prevent></form>
+
+    <!-- 仅当 event.target 是元素本身时才会触发事件处理器 -->
+    <!-- 例如：事件处理器不来自子元素 -->
+    <div @click.self="doThat">...</div>
+    ```
+
+    使用修饰符时需要注意调用顺序，因为相关代码是以相同的顺序生成的。因此使用 `@click.prevent.self` 会阻止元素及其子元素的所有点击事件的默认行为，而 `@click.self.prevent` 则只会阻止对元素本身的点击事件的默认行为。
+
+    `.capture`、`.once` 和 `.passive` 修饰符与原生 `addEventListener` 事件相对应：
+
+    ```html
+    <!-- 添加事件监听器时，使用 `capture` 捕获模式 -->
+    <!-- 例如：指向内部元素的事件，在被内部元素处理前，先被外部处理 -->
+    <div @click.capture="doThis">...</div>
+
+    <!-- 点击事件最多被触发一次 -->
+    <a @click.once="doThis"></a>
+
+    <!-- 滚动事件的默认行为（scrolling）将立即发生而非等待 `onScroll` 完成 -->
+    <!-- 以防其中包含 `event.preventDefault()` -->
+    <div @scroll.passive="onScroll"></div>
+    ```
+
+    `.passive`修饰符一般用于触摸事件的监听器，可以用来改善移动端设备的滚屏性能
+
+    TIP：请勿同时使用 `.passive` 和 `.prevent`，因为 `.passive` 已经向浏览器表明了你不想阻止事件的默认行为。如果你这么做了，则 `.prevent` 会被忽略，并且浏览器会抛出警告。
+
+21. 按键修饰符：
+
+    ```html
+    <!-- 仅在 `key` 为 `Enter` 时调用 `submit` -->
+    <input @keyup.enter="submit" />
+    ```
+
+    你可以直接使用 `KeyboardEvent.key` 暴露的按键名称作为修饰符，但需要转为 `kebab-case` 形式。
+
+    ```html
+    <input @keyup.page-down="onPageDown" />
+    ```
+
+    在上面的例子中，仅会在 `$event.key` 为 `PageDown` 时调用事件处理。
+
+22. 按键别名：
+
+    `.enter`、`.tab`、`.delete`（捕获“delete”和“Backspace”两个按键）、`.esc`、`.space`、`.up`、`.down`、`.left`、`.right`。
+
+23. 系统按键修饰符：
+
+    `.ctrl`、`.alt`、`.shift`、`.meta`
+
+    ```html
+    <!-- Alt + Enter -->
+    <input @keyup.alt.enter="clear" />
+
+    <!-- Alt + 点击 -->
+    <div @click.ctrl="doSomething"></div>
+    ```
+
+    Tip: 系统按键修饰符和常规按键不同。与 `keyup` 事件一起使用时，该按键必须在事件发出时处于按下状态。换句话说，`keyup.ctrl` 只会在你仍然按住 `ctrl` 但松开了另一个键时被触发。若你单独松开 `ctrl` 键将不会触发。
+
+24. `.exact` 修饰符
+
+    `.exact` 修饰符允许精确控制触发事件所需的系统修饰符的组合
+
+    ```html
+    <!-- 当按下 ctrl 时，即使同时按下 alt 或 shift 也会触发 -->
+    <button @click.ctrl="onClick"></button>
+
+    <!-- 当按下 ctrl 且未按下任何其他键时才会触发 -->
+    <button @click.ctrl.exact="onCtrlClick"></button>
+
+    <!-- 仅当没有按下任何系统按键时触发 -->
+    <button @click.exact="onClick"></button>
+    ```
+
+25. 鼠标按键修饰符
+
+    `.left`、`.right`、`.middle`
+
+    这些修饰符将处理程序限定为由特定鼠标按键触发的事件。
+
+    Tip：`.left`，`.right` 和 `.middle` 这些修饰符名称是基于常见的右手用鼠标布局设定的，但实际上它们分别指代设备事件触发器的“主”、”次“，“辅助”，而非实际的物理按键。因此，对于左手用鼠标布局而言，“主”按键在物理上可能是右边的按键，但却会触发 `.left` 修饰符对应的处理程序。又或者，触控板可能通过单指点击触发 `.left` 处理程序，通过双指点击触发 `.right` 处理程序，通过三指点击触发 `.middle` 处理程序。同样，产生“鼠标”事件的其他设备和事件源，也可能具有与“左”，“右”完全无关的触发模式。
