@@ -25,7 +25,7 @@
 4. 在绑定表达式中，每次组件的更新都会被重新调用，因此不应该产生任何副作用，比如改变数据或出发异步操作
 
    ```html
-   <time :titile="toTitleDate(date)" :datetime="date">
+   <time :title="toTitleDate(date)" :datetime="date">
      {{ formatDate(date) }}
    </time>
    ```
@@ -119,7 +119,7 @@
    ```
 
    局限性：
-   1. 有限的值类型：它只能用于对象类型（对象、数组和如`Map`、`Set`这样的集合类型）。它不能持有如`string`、`number`或`boolean`这样的原始类型
+   1. 有限的值类型：它只能用于对象类型（对象、数组和如`Map`、`Set`这样的集合类型）。它不能持有如`string`、`number`或`boolean`这样的原始类型(`ref`支持所有类型)
    2. 不能替换整个对象：由于Vue的响应式跟踪是通过属性访问实现的，因此我们必须始终保持对响应式对象的相同引用。这意味着我们不能轻易地“替换”响应式对象，因为这样的话与第一个引用的响应式连接将丢失：
 
       ```js
@@ -130,9 +130,13 @@
       state = reactive({ count: 1 });
       ```
 
-   3. 对解构操作不友好：当我们将响应式对象的原始类型属性解构为本地变量时，或者将该属性传递给函数时，我们将丢失响应式连接
+      (`ref`支持通过`.value`替换对象)
+
+   3. 对解构操作不友好：当我们将响应式对象的原始类型属性解构为本地变量时，或者将该属性传递给函数时，我们将丢失响应式连接。（`ref`支持使用`toRef`或`toRefs`进行解构，解构出`ref`，并保持与原属性的同步）
 
    由于这些限制，因此更加建议使用`ref()`作为声明响应式状态的主要API
+
+   `reactive`是惰性代理，对于多层嵌套对象，只有在访问到子对象时才会为子对象创建proxy代理
 
 10. 额外的`ref`解构细节
 
@@ -243,6 +247,8 @@
     ```
 
     `v-for`也可遍历一个对象的所有属性，遍历顺序会基于对该对象调用`Object.values()`的返回值来决定。
+
+    `Object.values()`的顺序优先级：按非负整数递增顺序（负数、浮点数视为字符串） > 字符串按添加顺序 > `Symbol`按添加顺序
 
     ```html
     <script>
@@ -452,3 +458,130 @@
     这些修饰符将处理程序限定为由特定鼠标按键触发的事件。
 
     Tip：`.left`，`.right` 和 `.middle` 这些修饰符名称是基于常见的右手用鼠标布局设定的，但实际上它们分别指代设备事件触发器的“主”、”次“，“辅助”，而非实际的物理按键。因此，对于左手用鼠标布局而言，“主”按键在物理上可能是右边的按键，但却会触发 `.left` 修饰符对应的处理程序。又或者，触控板可能通过单指点击触发 `.left` 处理程序，通过双指点击触发 `.right` 处理程序，通过三指点击触发 `.middle` 处理程序。同样，产生“鼠标”事件的其他设备和事件源，也可能具有与“左”，“右”完全无关的触发模式。
+
+26. `v-model`支持多个复选框绑定到同一个数组或集合，自动添加删除元素
+
+    ```html
+    <div>Checked names: {{ checkedNames }}</div>
+
+    <input type="checkbox" id="jack" value="Jack" v-model="checkedNames" />
+    <label for="jack">Jack</label>
+
+    <input type="checkbox" id="john" value="John" v-model="checkedNames" />
+    <label for="john">John</label>
+
+    <input type="checkbox" id="mike" value="Mike" v-model="checkedNames" />
+    <label for="mike">Mike</label>
+    ```
+
+27. `true-value`和`false-value`是Vue特有的attributes，仅支持和`v-model`配套使用。用于选中、取消选中时的值。
+28. vue3.5+，`watch`的`deep`支持number，表示最大遍历深度
+29. watch是懒加载执行，watchEffect是立即执行一遍。watchEffect 仅会在其同步执行期间，才追踪依赖。在使用异步回调时，只有在第一个 await 正常工作前访问到的属性才会被追踪。（watchEffect的依赖收集在异步函数中只收集第一个await之前的响应式参数）
+30. vue3.5+，支持`onWatcherCleanup()`注册一个清理函数，当侦听器失效并准备重新运行时会被调用
+
+    ```js
+    import { watch, onWatcherCleanup } from "vue";
+    watch(id, (newId) => {
+      const controller = new AbortController();
+      fetch(`/api/${newId}`, {
+        signal: controller.signal,
+      }).then(() => {
+        // 回调逻辑
+      });
+
+      // 必须在同步执行期间调用，不可以在异步函数的await后调用
+      onWatcherCleanup(() => {
+        // 终止未执行完成的请求
+        controller.abort();
+      });
+    });
+    ```
+
+    vue3.5之前，可以使用`onCleanup`参数：
+
+    ```js
+    // 由于onCleanup与watch实例相绑定，因此不受onWatcherCleanup的同步限制
+    watch(id, (newId, oldId, onCleanup) => {
+      onCleanup(() => {
+        // clean
+      });
+    });
+
+    watchEffect((onCleanup) => {
+      onCleanup(() => {
+        // clean
+      });
+    });
+    ```
+
+31. 默认情况下，watch回调会在父组件更新（如有）之后、所属组件的DOM更新之前被调用。这意味着如果尝试在回调中访问所属组件的DOM，那么DOM将处于更新前的状态。这个问题可以通过设置`flush: 'post'`解决，使得在回调中获取到更新之后的所属组件DOM。
+
+    ```js
+    watch(source, callback, {
+      flush: "post",
+    });
+    watchEffect(callback, {
+      flush: "post",
+    });
+    ```
+
+    后置刷新的`watchEffect()`有一个更方便的别名`watchPostEffect()`:
+
+    ```js
+    import { watchPostEffect } from "vue";
+
+    watchPostEffect(() => {
+      /* 在Vue更新后执行 */
+    });
+    ```
+
+32. 同步watch：在vue进行任何更新之前被触发：
+
+    ```js
+    watch(source, callback, {
+      flush: "sync",
+    });
+    watchEffect(callback, {
+      flush: "sync",
+    });
+    ```
+
+    `watchEffect`同样也有别名：`watchSyncEffect()`
+
+    ```js
+    import { watchSyncEffect } from "vue";
+
+    watchSyncEffect(() => {
+      /* 在响应式数据变化时同步执行 */
+    });
+    ```
+
+    TIP: 同步watch不会进行批处理（默认的watch和watchEffect会），每当检测到响应式数据发生变化时就会立即触发。可以使用它来监视简单的布尔值，但应避免在可能多次同步修改的数据源（如数组）上使用。
+
+33. 停止侦听器：在`setup()`或`<script setup>`中用同步语句创建侦听器，会自动绑定到宿主组件实例上，并且会在宿主组件卸载时自动停止，因此在大多数情况下无需关心如何停止监听器。但是如果用异步回调创建的侦听器，它不会被绑定到当前组件上，我们需要手动停止它，防止内存泄漏。
+
+    ```html
+    <script setup>
+      import { watchEffect } from "vue";
+
+      // 它会自动停止
+      watchEffect(() => {});
+
+      // ...这个则不会！
+      setTimeout(() => {
+        watchEffect(() => {});
+      }, 100);
+    </script>
+    ```
+
+    手动停止一个侦听器，只需要调用`watch`或`watchEffect`所返回的函数即可：
+
+    ```js
+    let watch;
+    setTimeout(() => {
+      watch = watchEffect(() => {});
+    });
+    onUnmounted(() => {
+      watch();
+    });
+    ```
