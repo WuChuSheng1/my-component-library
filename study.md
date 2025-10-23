@@ -585,3 +585,149 @@
       watch();
     });
     ```
+
+    34. 3.5+支持`useTemplateRef`获取组件实例
+
+34. 生命周期：
+    ![alt text](image-1.png)
+
+    setup -》 onBeforeCreate -》 optionAPI -》 onCreated -》 if 预编译模板 else 即时编译模板 -》 onBeforeMount -》 初始渲染/创建挂载DOM -》 onMounted -》 onBeforeUpdate -》 onUpdated -》 onBeforeUnMount -》 onUnMounted
+
+35. 全局注册组件：
+
+    ```js
+    import { createApp } from "vue";
+
+    const app = createApp({});
+
+    app
+      .component("MyComponent", MyComponent)
+      .component("MyComponentA", MyComponentA);
+    ```
+
+    问题： 全局注册导致Tree-Shaking失效。依赖关系不明确，大型项目中不容易定位组件的实现逻辑，丧失长期可维护性。
+
+36. 响应式`Props`解构（3.5+）
+    Vue的响应式系统基于属性访问跟踪状态的使用情况，例如，在计算属性和侦听器中访问`props.foo`时，`foo`属性将被跟踪为依赖项。
+    因此，在以下代码的情况下：
+
+    ```js
+    const { foo } = defineProps(["foo"]);
+
+    // watchEffect收集所有对响应式对象/属性的访问，下面的foo会变为props.foo；
+    // 而props是一个响应式对象，props.foo则会访问这个对象的属性foo
+    // 因此watchEffect会收集，而在watch中，props.foo相当于一个值，导致侦听不生效
+    watchEffect(() => {
+      // 在 3.5 之前只运行一次
+      // 在 3.5+ 中在 “foo” prop 变化时重新执行
+      console.log(foo);
+    });
+    ```
+
+    在 3.5 之前版本，`foo` 是一个实际的常量，永远不会改变。在 3.5 及以上版本，当在同一个 `<script setup>` 代码块中访问由 `defineProps` 解构的变量时，Vue编译器会自动在前面添加 `props.`。因此，上面的代码等同于以下代码：
+
+    ```js
+    const props = defineProps(["foo"]);
+
+    watchEffect(() => {
+      console.log(props.foo);
+    });
+    ```
+
+    此外，还可以使用JavaScript原生的默认值语法声明props默认值。这在使用基于类型的props声明时特别有用。
+
+    ```ts
+    const { foo = "hello" } = defineProps<{ foo?: string }>();
+    ```
+
+    如果希望在IDE中，在解构的props和普通变量之间有更多视觉上的区分，Vue的VsCode扩展提供了一个设置来启用解构props的内联提示。
+
+    将解构的props传递到函数中时：
+
+    ```js
+    const { foo } = defineProps(["foo"]);
+    watch(foo /* ... */);
+    ```
+
+    这并不会工作，因为它等价于`watch(props.foo, ...)`，相当于给`watch`传递的是一个值而不是响应式数据源。Vue的编译器会捕捉这种情况并发出警告。
+
+    通常我们可以包装成`getter`来侦听解构的prop：
+
+    ```js
+    watch(() => foo /* ... */);
+    ```
+
+    此外，当我们需要传递解构的prop到外部函数中并保持响应式时，这是推荐做法：
+
+    ```js
+    useComposable(() => foo);
+    ```
+
+    外部函数可以调用`getter`(或使用`toValue`进行规范化)来追踪提供的prop变更。例如，在计算属性或侦听器的getter中。
+
+37. `toValue`: 3.3+支持
+
+    将值、refs或getters规范化为值。与`unref()`类似，不同的此函数也会规范化getter函数。如果参数是一个getter，它将会被调用并且返回它的返回值。
+
+    ```ts
+    /* function toValue<T>(source: T | Ref<T> | (() => T)): T */
+    import type { MaybeRefOrGetter } from "vue";
+    function useFeature(id: MaybeRefOrGetter<number>) {
+      watch(
+        () => toValue(id),
+        (id) => {
+          /* ... */
+        },
+      );
+    }
+    useFeature(1);
+    useFeature(ref(1));
+    useFeature(() => 1);
+    ```
+
+38. `defineProps()` 的参数不能访问`<script setup>`中的其他变量(Vue相关的响应式变量)，是因为：
+    1. 它是编译器宏，在编译阶段处理
+    2. 其参数被提升到模块作用域
+    3. 此时组件内的局部参数还未创建
+    4. 这种设计确保更好的类型安全、编译时检查和运行时性能
+
+39. 可为null的类型
+
+    如果prop的类型为必传但可为null，可以使用包含`null`的数组语法：
+
+    ```js
+    defineProps({
+      id: {
+        type: [String, null],
+        required: true,
+      },
+    });
+    ```
+
+    注意：如果`type`仅为`null`而非使用数组语法，它将允许任何类型
+
+40. Boolean类型转换
+
+    当一个prop被声明为允许多种类型时，`Boolean`的转换规则也将被应用。然后，当同时允许`String`和`Boolean`时，有一种边缘情况——只有当`Boolean`出现在`String`之前时，`Boolean`转换规则才适用：
+
+    ```js
+    // disabled 将被转换为 true
+    defineProps({
+      disabled: [Boolean, Number],
+    });
+
+    // disabled 将被转换为 true
+    defineProps({
+      disabled: [Boolean, String],
+    });
+
+    // disabled 将被转换为 true
+    defineProps({
+      disabled: [Number, Boolean],
+    });
+
+    // disabled 将被解析为空字符串 (disabled="")
+    defineProps({
+      disabled: [String, Boolean],
+    });
+    ```
