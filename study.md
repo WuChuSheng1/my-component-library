@@ -1070,3 +1070,332 @@
     ```
 
     如果不使用 `key` attribute，则只有文本节点会被更新，因此不会发生过渡。但是，有了 `key` 属性，Vue就知道在 `count` 改变时创建一个新的 `span` 元素，因此 `Transition` 组件有两个不同的元素在它们之间过渡。
+
+55. `TransitionGroup`：用于对 `v-for` 列表中的元素或组件的插入、移除和顺序改变添加动画效果。
+
+    与 `Transition` 的区别：
+    - 默认情况下，它不会渲染一个容器元素。但你可以通过传入 `tag` prop 来指定元素作为容器元素来渲染。
+    - 过渡模式(`mode="out-in"/mode="in-out"`)在这里不可用，因为不再是在互斥的元素之间切换。
+    - 列表中的每个元素都必须要有一个独一无二的 `key` attribute。
+    - CSS 过渡 class 会被应用在列表内的元素上，而不是容器元素上。
+
+    进入/离开动画简单示例：
+
+    ```html
+    <TransitionGroup name="list" tag="ul">
+      <li v-for="item in items" :key="item">{{ item }}</li>
+    </TransitionGroup>
+    ```
+
+    ```css
+    .list-enter-active,
+    .list-leave-active {
+      transition: all 0.5s ease;
+    }
+
+    .list-enter-from,
+    .list-leave-to {
+      opacity: 0;
+      transform: translateX(30px);
+    }
+    ```
+
+    移动动画
+
+    上面的示例中有一些明显的缺陷：当某一项被插入或移除时，它周围的元素会立即发生“跳跃”而不是平稳地移动。我们可以通过添加一些额外的 CSS 规则来解决这个问题：
+
+    ```css
+    .list-move,
+    .list-enter-active,
+    .list-leave-active {
+      transition: all 0.5s ease;
+    }
+
+    .list-enter-from,
+    .list-leave-to {
+      opacity: 0;
+      transform: translateX(30px);
+    }
+
+    /** 确保将离开的元素从布局流中删除，以便能够正确地计算移动的动画 */
+    .list-leave-active {
+      position: absolute;
+    }
+    ```
+
+    自定义过渡组class：通过传入 `moveclass` prop 为移动元素指定自定义过渡class，类似于自定义过渡class
+
+56. 渐近延迟列表动画
+
+    通过在 JavaScript 钩子中读取元素的 data attribute，可以实现带渐近延迟的列表动画。
+
+    ```html
+    <TransitionGroup
+      tag="ul"
+      :css="false"
+      @before-enter="onBeforeEnter"
+      @enter="onEnter"
+      @leave="onLeave"
+    >
+      <li
+        v-for="(item, index) in computedList"
+        :key="item.msg"
+        :data-index="index"
+      >
+        {{ item.msg }}
+      </li>
+    </Transition>
+    ```
+
+    接着在 JavaScript 钩子中，基于当前元素的 data attribute 对该元素的进场动画添加一个延迟。以下是一个基于 GSAP library 的动画示例：
+
+    ```js
+    function onEnter(el, done) {
+      gsap.to(el, {
+        opacity: 1,
+        height: "1.6em",
+        delay: el.dataset.index * 0.15,
+        onComplete: done,
+      });
+    }
+    ```
+
+57. `KeepAlive`：主要功能是在多个组件间动态切换时缓存被移除的组件实例。
+
+    ```html
+    <KeepAlive>
+      <component :is="activeComponent" />
+    </KeepAlive>
+    ```
+
+    包含/排除：
+
+    `KeepAlive` 默认会缓存内部的所有组件实例，但可以通过 `include` 和 `exclude` prop 来定制该行为，这两个 prop 的值都可以是一个以英文逗号分隔的字符串、一个正则表达式，或是包含这两种类型的一个数组：
+
+    ```html
+    <!-- 以英文逗号分隔的字符串 -->
+    <KeepAlive include="a,b">
+      <component :is="view" />
+    </KeepAlive>
+
+    <!-- 正则表达式（需使用 `v-bind`） -->
+    <KeepAlive :include="/a|b/">
+      <component :is="view" />
+    </KeepAlive>
+
+    <!-- 数组（需使用 `v-bind`） -->
+    <KeepAlive :include="['a', 'b']">
+      <component :is="view" />
+    </KeepAlive>
+    ```
+
+    它会根据组件的 `name` 选项进行匹配，所以组件如果想要条件性地被 `KeepAlive` 缓存，就必须显示声明一个 `name` 选项。
+    TIP：3.2.24+版本，使用 `<script setup>` 的单文件组件会自动根据文件名生成对应的 `name` 选项，无需再手动声明。
+
+58. 最大缓存实例数
+
+    通过传入 `max` prop 来限制可被缓存的最大组件实例数。`<KeepAlive>` 的行为在指定了 `max` 后类似一个 LRU缓存：如果缓存的实例数量即将超过指定的那个最大数量，则最久没有被访问的缓存实例将被销毁，以便为新的实例腾出空间。
+
+    ```html
+    <KeepAlive :max="10">
+      <component :is="view" />
+    </KeepAlive>
+    ```
+
+59. 缓存实例的生命周期
+
+    当一个组件实例从 DOM 上移除但因为被 `<KeepAlive>` 缓存而仍作为组件树的一部分时，它将变为 **不活跃** 状态而不是被渲染。当一个组件实例作为缓存树的一部分插入到 DOM 中时，它将重新 **被激活**
+
+    一个持续存在的组件可以通过 `onActivated()` 和 `onDeactivated` 注册相应的两个状态的生命周期钩子：
+
+    ```html
+    <script setup>
+      import { onActivated, onDeactivated } from "vue";
+
+      onActivated(() => {
+        // 调用时机为首次挂载
+        // 以及每次从缓存中被重新插入时
+      });
+
+      onDeactivated(() => {
+        // 在从 DOM 上移除、进入缓存
+        // 以及组件卸载时调用
+      });
+    </script>
+    ```
+
+    TIP：
+    - `onActivated` 在组件挂载时也会调用，并且 `onDeactivated` 在组件卸载时也会调用。
+    - 这两个钩子不仅适用于 `KeepAlive` 缓存的根组件，也适用于缓存树中的后代组件。
+
+60. `KeepAlive` 性能分析：
+    1. 多实例，每个`KeepAlive`组件实例都有自己的独立缓存空间，不同的 `KeepAlive` 组件之间不会共享缓存；因此，使用多个 `KeepAlive` 会导致多个实例内存占用，并且创建了多个独立的缓存空间，内存占用会叠加。
+    2. DOM树相关，当`KeepAlive`缓存一个组件时，这个组件会完整保留至内存中，并且从DOM树上 **移除**，因此需要注意，在一些自定义Web Component中，在组件挂载的初始化钩子逻辑中，如果对数据有（耗费性能）的处理，需要做特别的适配。
+
+61. `Teleport` 传送门组件：
+
+    典型模态框问题：
+    - 模态框的`position: fixed`能够相对浏览器窗口放置，但要求其任何的祖先元素都不能设置 `transform`、`perspective` 或 `filter` 样式属性。这会不小心就破坏掉模态框的布局。
+    - 模块框的`z-index`受限于它的容器元素，如果有其他元素与它的容器元素重叠，并且有更高的`z-index`，那么它将覆盖住模态框。
+
+    ```html
+    <script setup>
+      import Modal from "./Modal.vue";
+      import { ref } from "vue";
+      const showModal = ref(false);
+    </script>
+    <template>
+      <button id="show-modal" @click="showModal = true">Show Modal</button>
+
+      <Teleport to="body">
+        <Modal :show="showModal" @close="shoaModal = false">
+          <template #header>
+            <h3>Custom Header</h3>
+          </template>
+        </Modal>
+      </Teleport>
+    </template>
+    ```
+
+    ```html
+    <!-- Modal.vue -->
+    <script setup>
+      const props = defineProps({
+        show: Boolean,
+      });
+    </script>
+
+    <template>
+      <Transition name="modal">
+        <div v-if="show" class="modal-mask">
+          <div class="modal-container">
+            <div class="modal-header">
+              <slot name="header">default header</slot>
+            </div>
+
+            <div class="modal-body">
+              <slot name="body">default body</slot>
+            </div>
+
+            <div class="modal-footer">
+              <slot name="footer">
+                default footer
+                <button class="modal-default-button" @click="$emit('close')">
+                  OK
+                </button>
+              </slot>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </template>
+
+    <style>
+      .modal-mask {
+        position: fixed;
+        z-index: 9998;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        display: flex;
+        transition: opacity 0.3s ease;
+      }
+
+      .modal-container {
+        width: 300px;
+        margin: auto;
+        padding: 20px 30px;
+        background-color: #fff;
+        border-radius: 2px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.33);
+        transition: all 0.3s ease;
+      }
+
+      .modal-header h3 {
+        margin-top: 0;
+        color: #42b983;
+      }
+
+      .modal-body {
+        margin: 20px 0;
+      }
+
+      .modal-default-button {
+        float: right;
+      }
+
+      /*
+    * 对于 transition="modal" 的元素来说
+    * 当通过 Vue.js 切换它们的可见性时
+    * 以下样式会被自动应用。
+    *
+    * 你可以简单地通过编辑这些样式
+    * 来体验该模态框的过渡效果。
+    */
+
+      .modal-enter-from {
+        opacity: 0;
+      }
+
+      .modal-leave-to {
+        opacity: 0;
+      }
+
+      .modal-enter-from .modal-container,
+      .modal-leave-to .modal-container {
+        -webkit-transform: scale(1.1);
+        transform: scale(1.1);
+      }
+    </style>
+    ```
+
+62. `Teleport`搭配组件使用
+
+    `Teleport`只改变了渲染的DOM结构，它不会影响组件间的逻辑关系，也就是说，如果`Teleport`包含了一个组件，那么该组件始终和这个使用了`<Teleport>`的组件保持逻辑上的父子关系，传入的prop和触发的事件也会照常工作。
+
+    这也意味着来自父组件的注入也会按预期共组，子组件将在 Vue Devtools中嵌套在父级组件下，而不是放在实际内容移动到的地方。
+
+63. 禁用`Teleport`
+
+    在某些场景下可能要视情况禁用`Teleport`，举例来说，我们想要在桌面端将一个组件当作浮层来渲染，但在移动端则当作行内组件，我们可以通过对`Teleport`动态地传入一个`disabled`prop来进行处理：
+
+    ```html
+    <Teleport :disable="isMobile">...</Teleport>
+    ```
+
+64. 多个`Teleport`共享目标
+
+    一个可重用的`<Modal>`组件可能同时存在多个实例，对于此类场景，多个`<Teleport>`组件可以将其内容挂载在同一个目标元素上，而顺序就是简单的顺序追加，后挂载的将排在目标元素下更后面的位置上，但都在目标元素中。
+
+    ```html
+    <Teleport to="#modals">
+      <div>A</div>
+    </Teleport>
+    <Teleport to="#modals">
+      <div>B</div>
+    </Teleport>
+    ```
+
+    渲染的结果为：
+
+    ```html
+    <div id="modals">
+      <div>A</div>
+      <div>B</div>
+    </div>
+    ```
+
+65. 延迟解析的Teleport（3.5+）：即推迟到父组件的mounted之后再解析
+
+    在vue3.5+版本，可以使用`defer` prop推迟Teleport的目标解析，直到应用的其他部分挂载，这允许Teleport将由Vue渲染且位于组件树之后部分的容器元素作为目标：
+
+    ```html
+    <Teleport defer to="#late-div">...</Teleport>
+
+    <!-- 稍后出现于模板中的某处 -->
+    <div id="late-div"></div>
+    ```
+
+    TIP：目标元素必须与Teleport在同一个挂载/更新周期内渲染，即如果`<div>`在一秒后才挂载，Teleport仍然会报错，延迟Teleport的原理与`mounted`生命周期钩子类似。
